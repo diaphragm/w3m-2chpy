@@ -495,6 +495,8 @@ def scrape_dat(url, dat_file):
             be2        = match.group(6) or ''
             content    = match.group(7).replace('<br><br>', '') or ''
             
+            content    = re.sub(r'<a\shref=[^>]+>([^&][^<]*)</a>', r"\1", content)
+            
             if be1 and be2:
                 line = "%s<>%s<>%s BE:%s-%s<>%s<>" % (name_hash, email, date_se_id, be1, be2, content)
             else:
@@ -516,6 +518,8 @@ def scrape_dat(url, dat_file):
                 be1        = match.group(6) or ''
                 be2        = match.group(7) or ''
                 content    = match.group(8).replace('<br><br>', '') or ''
+                
+                content    = re.sub(r'<a\shref=[^>]+>([^&][^<]*)</a>', r"\1", content)
                 
                 if be1 and be2:
                     line = "%s<>%s<>%s BE:%s-%s<>%s<>" % (name_hash, email, date_se_id, be1, be2, content)
