@@ -12,13 +12,13 @@ import cgitb; cgitb.enable()
 import time
 if sys.version_info >= (3, 0):
     from html.parser import HTMLParser
-    from urllib.request import urlretrieve
+    from urllib.request import urlretrieve, urlopen
     from urllib.request import build_opener, HTTPCookieProcessor, Request
     from urllib.parse import unquote_plus, urlencode
     from http.cookiejar import CookieJar
 else:
     from HTMLParser import HTMLParser
-    from urllib import unquote_plus, urlretrieve, urlencode
+    from urllib import unquote_plus, urlretrieve, urlencode, urlopen
     from urllib2 import build_opener, HTTPCookieProcessor, Request
     from cookielib import CookieJar
 import threading
@@ -42,7 +42,7 @@ cgi_script = 'cgi-bin/%s' % script_name
 user_agent = 'Monazilla/1.00 (%s)' % script_name
 r_thread_list_url = r'http:\/\/[^ ]*\.(?:2ch\.net|bbspink\.com)'
 r_thread_url = r'http:\/\/[^ ]*\.(?:2ch\.net|bbspink\.com)\/test\/read\.cgi'
-debug_mode = False
+debug_mode = True
 
 
 if sys.version_info >= (3, 0):
@@ -238,7 +238,12 @@ def print_thread_header(bbs, key, thread_name, new_num=None, old_num=None,
         func = 'PrintThread'
     else:
         func = 'PrintThreadLog'
-    t = time.localtime(int(key))
+
+    try:
+        t = time.localtime(int(key))
+    except ValueError:
+        t = time.localtime(0)
+
     st = time.strftime('%Y/%m/%d %H:%M:%S', t)
     print('<tr>')
     print('<td><a href="file:/%s?%s=%s/%s/">%s</a></td>' % (cgi_script,
@@ -442,7 +447,8 @@ def get_dat(url, dat_file, retrieve):
         old_num = 0
     if retrieve:
         try:
-            urlretrieve(url, dat_file)
+#            urlretrieve(url, dat_file)
+            scrape_dat(url, dat_file)
             with codecs.open(dat_file, 'r', encode_2ch, 'replace') as f:
                 f.seek(0, 2)
                 if f.tell() < offset:
@@ -456,6 +462,73 @@ def get_dat(url, dat_file, retrieve):
             debug_print()
     new_num = len(dat)
     return dat, new_num, old_num
+
+
+def scrape_dat(url, dat_file):
+    
+    a = url.split('/')
+    host = a[2]
+    bbs = a[3]
+    key = a[6].split('.')[0]
+    url_html = 'http://%s/test/read.cgi/%s/%s/' % (host, bbs, key)
+    html = urlopen(url_html).read().decode(encode_2ch, 'replace')
+    
+    # 正規表現は2chproxy.plより拝借
+    # https://github.com/yama-natuki/2chproxy.pl [MIT License]
+    title_regex = r'<title>(.*)</title>'             #タイトル抽出
+    #                       1.レス番                        2.目欄           3.名前/ハッシュ                4.1.日付                       4.2.SE1                       4.3.ID     4.4 <0000>                               5.BE1           6.BE2          7.本文
+    response_regex = r'<dt>(\d+)\s[^<]*<(?:a href="mailto:([^"]+)"|font[^>]*)><b>(.*?)</b></(?:a|font)>.((?:[^<]+?)(?:\s*<a href="?http[^">]*"?[^>]*>[^<]*</a>)?(?:\s*(?:[^<]+?(?:(?:<\d+>)+[^<]*)?))?)?\s*(?:<a\s[^>]*be\(([^)]*)\)[^>]*>\?([^<]+)</a>)?<dd>([^\n]+)'
+    response_regex2 = r'<div class="number">(\d+)[^>]*</div><div class="name"><b>(?:<a href="mailto:([^"]+)">(.*?)</a>|(.*?))</b></div><div class="date">([^<]+)</div>(?:<div class="be\s[^"]+"><a href="http://be.2ch.net/user/(\d+)"[^>]*>\?([^<]+)</a></div>)?<div class="message">(.*?)</div>'
+    
+    dat = []
+    
+    title = re.search(title_regex, html)
+    if title:
+        title = title.group(1)
+        for match in re.finditer(response_regex, html):
+            line = ''
+            res_number = match.group(1) or ''
+            email      = match.group(2) or ''
+            name_hash  = match.group(3) or ''
+            date_se_id = match.group(4) or ''
+            be1        = match.group(5) or ''
+            be2        = match.group(6) or ''
+            content    = match.group(7).replace('<br><br>', '') or ''
+            
+            if be1 and be2:
+                line = "%s<>%s<>%s BE:%s-%s<>%s<>" % (name_hash, email, date_se_id, be1, be2, content)
+            else:
+                line = "%s<>%s<>%s<>%s<>" % (name_hash, email, date_se_id, content)
+            if res_number == "1":
+                line += title
+            
+            dat.append(line)
+    else:
+        title = re.search(title_regex, html, re.DOTALL)
+        if title:
+            title = title.group(1).rstrip()
+            for match in re.finditer(response_regex2, html):
+                line = ''
+                res_number = match.group(1) or ''
+                email      = match.group(2) or ''
+                name_hash  = match.group(3) or match.group(4) or ''
+                date_se_id = match.group(5) or ''
+                be1        = match.group(6) or ''
+                be2        = match.group(7) or ''
+                content    = match.group(8).replace('<br><br>', '') or ''
+                
+                if be1 and be2:
+                    line = "%s<>%s<>%s BE:%s-%s<>%s<>" % (name_hash, email, date_se_id, be1, be2, content)
+                else:
+                    line = "%s<>%s<>%s<>%s<>" % (name_hash, email, date_se_id, content)
+                if res_number == "1":
+                    line += title
+                
+                dat.append(line)
+    
+    with open(dat_file, "w") as f:
+        f.write("\n".join(dat).encode(encode_2ch))
+    f.close()
 
 
 
