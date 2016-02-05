@@ -530,6 +530,7 @@ def scrape_dat(url, dat_file):
                 
                 dat.append(line)
     
+    dat.append('') # to add newline to EOF
     with open(dat_file, "w") as f:
         f.write("\n".join(dat).encode(encode_2ch))
     f.close()
