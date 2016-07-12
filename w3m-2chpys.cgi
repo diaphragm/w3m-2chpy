@@ -398,7 +398,7 @@ def get_id_reference(dat):
 
 
 def dat2html(dat, bbs, key):
-    p = re.compile(r'<a href="?[^"]*/[0-9]+-?[0-9]*"? target="?_blank"?>'
+    p = re.compile(r'<a href="?[^"]*/[0-9]+-?[0-9]*"?.*target="?_blank"?>'
             r'&gt;&gt;(([0-9]+)-?([0-9]*))</a>')
     q = re.compile(r'(' + r_thread_url + r'\/([^ ]*))')
     dat = apply_abone(dat, bbs, key)
