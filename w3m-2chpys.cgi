@@ -939,7 +939,8 @@ def post_msg(query):
     url = base_url + 'test/bbs.cgi'
     for k, v in query.items():
         if k == 'MESSAGE':
-            v = v.replace(' ', '&nbsp;').strip()
+            #v = v.replace(' ', '&nbsp;').strip()
+            v = HTMLParser().unescape(v).strip()
         query[k] = v.encode(encode_2ch)
     encoded_query = urlencode(query).encode(encode_2ch)
     if 'MESSAGE' not in query:
