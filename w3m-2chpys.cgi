@@ -401,6 +401,7 @@ def dat2html(dat, bbs, key):
     p = re.compile(r'<a href="?[^"]*/[0-9]+-?[0-9]*"?.*target="?_blank"?>'
             r'&gt;&gt;(([0-9]+)-?([0-9]*))</a>')
     q = re.compile(r'(' + r_thread_url + r'\/([^ ]*))')
+    q2 = re.compile(r'(?<!href=")https?://(?:[\w*%#!()~\'-]+\.)+[\w*%#!()~\'-]+(?:\/[\w*%#!()~\'-=&\.\/\?]+)*')
     dat = apply_abone(dat, bbs, key)
     ref = get_reference(dat)
     id_ref = get_id_reference(dat)
@@ -430,6 +431,7 @@ def dat2html(dat, bbs, key):
         msg = p.sub(r'<a href=#\2>&gt;&gt;\1</a>', v[3])
         msg = (q.sub(r'[<a href="file:/%s?PrintThread=\2">*</a>]\1' %
             cgi_script, msg))
+        msg = q2.sub(r'<a href="\g<0>">\g<0></a>', msg)
         lst.append('%s</dd></p>' % msg)
         html.append(''.join(lst))
     return html
